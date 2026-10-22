@@ -89,6 +89,14 @@ self.addEventListener('fetch', function (e) {
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return;     // 只管自己這個網站
 
+  /* ?live=1 ＝ 頁面在問「現在到底連不連得上」，這種請求**絕對不可以用快取回答**。
+     以前不分青紅皂白一律用「網路優先、逾時給快取」回應，於是斷網時頁面仍然拿到
+     一份合法的 version.json（只是舊的），頁面就以為自己連得上、只是資料落後，
+     接著觸發「自動修復」把離線快取整包刪掉再導去新網址 ——
+     而那時根本沒有網路，門口的報到工具就在斷網當下自毀成一片空白。
+     不攔它，讓 fetch 直接走網路；真的離線就會 reject，頁面那邊 catch 到就什麼都不做。 */
+  if (/version\.json$/.test(url.pathname) && url.searchParams.get('live') === '1') return;
+
   if (/version\.json$/.test(url.pathname)) {
     e.respondWith(網路優先(req, './version.json'));
     return;
